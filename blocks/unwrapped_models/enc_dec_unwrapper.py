@@ -59,16 +59,16 @@ def UnwrappedMbart():
     discretizer_enc = SoftmaxDiscreteBottleneck({'dimensions': {'decoder_embedding_dim': 1024, 'vocab_size': 250054, 'encoder_embedding_dim': 1024, 'unembedding_dim': 250054}, 
                                 'quantize_vector': True, 'temperature': 1.0,
                                 'encoder_embedding_trainable': False, 'decoder_embedding_trainable': False, 'linear_head_trainable': False, 
-                                'encoder_embedding_weight': encoder_weight, 'decoder_embedding_weight': None, 
-                                'linear_head_weight': None, 'linear_head_bias': None})
+                                'encoder_embedding_weight': encoder_weight, 'decoder_embedding_weight': decoder_weight, 
+                                'linear_head_weight': linearhead_weight, 'linear_head_bias': linearhead_bias})
     discretizer_dec = SoftmaxDiscreteBottleneck({'dimensions': {'decoder_embedding_dim': 1024, 'vocab_size': 250054, 'encoder_embedding_dim': 1024, 'unembedding_dim': 250054}, 
                                 'quantize_vector': True, 'temperature': 1.0,
                                 'encoder_embedding_trainable': False, 'decoder_embedding_trainable': False, 'linear_head_trainable': False, 
-                                'encoder_embedding_weight': None, 'decoder_embedding_weight': decoder_weight,
+                                'encoder_embedding_weight': encoder_weight, 'decoder_embedding_weight': decoder_weight,
                                 'linear_head_weight': linearhead_weight, 'linear_head_bias': linearhead_bias})
     return {
         'model': model, 'vector_model': vector_model,
-        'discretizer_enc': discretizer_enc, 'discretizer_z': discretizer_dec,}
+        'discretizer_enc': discretizer_enc, 'discretizer_dec': discretizer_dec,}
 
 
 
