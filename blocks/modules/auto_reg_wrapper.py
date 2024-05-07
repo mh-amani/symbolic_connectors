@@ -215,6 +215,12 @@ class AutoRegWrapper(Module):
             return true_attention_mask
         # what about eos_flags * p_not_eos?
 
+
+
+
+
+
+
 def main():
     # an example for the encoder-decoder MBART model:
     # get the models and the discretizers

@@ -5,30 +5,6 @@ from torch.nn import LayerNorm,BatchNorm1d
 import math
 from dataclasses import dataclass
 
-
-@dataclass
-class AbstractDiscreteLayerConfig:
-    dimensions = {
-        'embedding_dim': 1024,
-        'unembedding_dim': 250054,
-        'vocab_size': 250054,
-        'dictionary_embedding_dim': 250054 #if probability based quantization is used, this should be the same as vocab_size, if distance based quantization is used, this should be the same as the embedding_dim
-    }
-    average_eos_mask_in_backprop: bool = True
-    soft_average: bool = False
-    temperature: float = 1.0
-    label_smoothing_scale: float = 0.001
-    encoder_embedding_weight = None
-    encoder_embedding_trainable = True
-    decoder_embedding_weight = None
-    decoder_embedding_trainable = True
-    # dictionary_weight = torch.eye(250054)
-    dictionary_trainable = True
-    linear_head_weight = None
-    linear_head_trainable = True
-    # bottleneck_normalization = 'None' # can be 'None', 'layer norm', 'batch norm', 'weight norm'
-    
-
 class AbstractDiscreteLayer(nn.Module): 
     def __init__(self, config) -> None:
         super().__init__()
@@ -39,7 +15,7 @@ class AbstractDiscreteLayer(nn.Module):
         self.decoder_embedding_dim = config['dimensions']['decoder_embedding_dim']
         self.unembedding_dim = config['dimensions']['unembedding_dim']
 
-        self.quantize_vector = config.get('quantize_vector', True)
+        self.quantize_vector = config['quantize_vector']
 
         self.temperature = config.get('temperature', 1.0)
         self.label_smoothing_scale = config.get('label_smoothing_scale', 0.001)
@@ -145,3 +121,27 @@ class AbstractDiscreteLayer(nn.Module):
         #     self.encoder_embedding_normalization = self.get_normalization_method(self.encoder_embedding, norm_args=self.bottleneck_normalization_args,output_dimension = self.input_dim)
         #     self.decoder_embedding_normalization = self.get_normalization_method(self.decoder_embedding, norm_args=self.bottleneck_normalization_args,output_dimension = self.output_dim)
     
+
+
+########################################################################################################################
+# @dataclass
+# class AbstractDiscreteLayerConfig:
+#     dimensions = {
+#         'embedding_dim': 1024,
+#         'unembedding_dim': 250054,
+#         'vocab_size': 250054,
+#         'dictionary_embedding_dim': 250054 #if probability based quantization is used, this should be the same as vocab_size, if distance based quantization is used, this should be the same as the embedding_dim
+#     }
+#     average_eos_mask_in_backprop: bool = True
+#     soft_average: bool = False
+#     temperature: float = 1.0
+#     label_smoothing_scale: float = 0.001
+#     encoder_embedding_weight = None
+#     encoder_embedding_trainable = True
+#     decoder_embedding_weight = None
+#     decoder_embedding_trainable = True
+#     # dictionary_weight = torch.eye(250054)
+#     dictionary_trainable = True
+#     linear_head_weight = None
+#     linear_head_trainable = True
+#     # bottleneck_normalization = 'None' # can be 'None', 'layer norm', 'batch norm', 'weight norm'

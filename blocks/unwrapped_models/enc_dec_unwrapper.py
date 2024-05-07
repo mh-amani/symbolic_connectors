@@ -1,6 +1,7 @@
 import torch 
 from typing import Optional
 from transformers import PreTrainedModel, EncoderDecoderModel
+from transformers import MBartForConditionalGeneration, BartForConditionalGeneration
 from blocks.modules.discrete_bottleneck.softmax import SoftmaxDiscreteBottleneck
 
 
@@ -38,7 +39,18 @@ def EncoderDecoderUnwrapper(enc_dec_model):
 ########################################################################################################################
 # Example to use the function vector_model_enfr, en_encoder_weight, fr_decoder_weight, fr_linearhead_weight = EncoderDecoderUnwrapper(model_enfr)
 
-def UnwrappedMbart():
+
+def Unwrappedbart(config):
+    model = BartForConditionalGeneration(config)
+    df = EncoderDecoderUnwrapper(model)
+    vector_model = df['vector_model']
+    encoder_embedding_weight = df['encoder_embedding_weight']
+    decoder_embedding_weight = df['decoder_embedding_weight']
+    linearhead_weight = df['linearhead_weight']
+    linearhead_bias = df['linearhead_bias']
+    return vector_model, encoder_embedding_weight, decoder_embedding_weight, linearhead_weight, linearhead_bias
+
+def UnwrappedMbart(model=None, tokenizer=None, config=None):
     """
     Unwraps the MBART model to get the encoder and decoder weights.
     Returns:
@@ -72,6 +84,13 @@ def UnwrappedMbart():
 
 
 
+
+
+
+
+
+
+
 def main() -> Optional[float]:
     # an example for the encoder-decoder MBART model:
     # get the models and the discretizers
@@ -83,7 +102,6 @@ def main() -> Optional[float]:
     
     from transformers import MBart50TokenizerFast
     tokenizer = MBart50TokenizerFast.from_pretrained("facebook/mbart-large-50-many-to-many-mmt", src_lang="en_XX", tgt_lang="fr_XX")
-
 
     # an example input and output sequences
     sequence_en_1 = "Everything not saved will be lost."
@@ -120,9 +138,6 @@ def main() -> Optional[float]:
 
 if __name__ == "__main__":
     main()
-
-
-
 
 ########################################################################################################################
 # code snippets and other useful stuff for debugging and checking stuff
