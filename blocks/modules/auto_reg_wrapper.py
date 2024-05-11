@@ -26,9 +26,9 @@ class AutoRegWrapper(Module):
         self.control_token_ids = self.config['control_token_ids']
         self.soft_average = self.config['soft_average']
 
-        self.pad_embed_enc = self.output_discretizer.encoder_embedding_from_id(torch.tensor(self.control_token_ids['output_pad_token_id']))
-        self.pad_embed_dec = self.output_discretizer.decoder_embedding_from_id(torch.tensor(self.control_token_ids['output_pad_token_id']))
-        self.onehot_score_pad = torch.nn.functional.one_hot(torch.tensor(self.control_token_ids['output_pad_token_id']), num_classes=self.output_discretizer.vocab_size).float()
+        self.pad_embed_enc = self.output_discretizer.encoder_embedding_from_id(torch.tensor(self.control_token_ids['output_pad_token_id']).to(self.config['device']))
+        self.pad_embed_dec = self.output_discretizer.decoder_embedding_from_id(torch.tensor(self.control_token_ids['output_pad_token_id']).to(self.config['device']))
+        self.onehot_score_pad = torch.nn.functional.one_hot(torch.tensor(self.control_token_ids['output_pad_token_id']), num_classes=self.output_discretizer.vocab_size).to(self.config['device']).float()
 
         output_prepending_ids = self.config.get('output_prepending_ids', None)
         output_prepending_embeds_enc = self.config.get('output_prepending_embeds_enc', None)
@@ -37,13 +37,13 @@ class AutoRegWrapper(Module):
         if output_prepending_ids is None and (output_prepending_embeds_enc is None or output_prepending_embeds_dec is None):
             raise ValueError("output_prepending_ids nor the embeddings are not provided")
         elif output_prepending_ids is None and (output_prepending_embeds_enc is not None and output_prepending_embeds_dec is not None):
-            self.output_prepending_ids = self.control_token_ids['pad_token_id_y'] * torch.ones(output_prepending_embeds_dec.shape[:2], dtype=torch.long).to(output_prepending_embeds_dec.device)
-            self.output_prepending_embeds_enc = output_prepending_embeds_enc
-            self.output_prepending_embeds_dec = output_prepending_embeds_dec
+            self.output_prepending_ids = self.control_token_ids['pad_token_id_y'] * torch.ones(output_prepending_embeds_dec.shape[:2], dtype=torch.long).to(self.config['device'])
+            self.output_prepending_embeds_enc = output_prepending_embeds_enc.to(self.config['device'])
+            self.output_prepending_embeds_dec = output_prepending_embeds_dec.to(self.config['device'])
         else:
-            self.output_prepending_ids = output_prepending_ids
-            self.output_prepending_embeds_enc = self.output_discretizer.encoder_embedding_from_id(output_prepending_ids)
-            self.output_prepending_embeds_dec = self.output_discretizer.decoder_embedding_from_id(output_prepending_ids)
+            self.output_prepending_ids = output_prepending_ids.to(self.config['device'])
+            self.output_prepending_embeds_enc = self.output_discretizer.encoder_embedding_from_id(self.output_prepending_ids).to(self.config['device'])
+            self.output_prepending_embeds_dec = self.output_discretizer.decoder_embedding_from_id(self.output_prepending_ids).to(self.config['device'])
 
 
     def forward(self, input_ids: torch.Tensor=None, input_attention_mask: torch.Tensor=None, input_embeds_enc: torch.Tensor=None,
@@ -217,10 +217,6 @@ class AutoRegWrapper(Module):
 
 
 
-
-
-
-
 def main():
     # an example for the encoder-decoder MBART model:
     # get the models and the discretizers
@@ -236,7 +232,8 @@ def main():
     # tokenizer.vocab['</s>']: 2, tokenizer.vocab['en_XX']: 250004, tokenizer.vocab['fr_XX']: 250008
     prefix_ids_fr = torch.tensor([2, 250008]).unsqueeze(0)
 
-    config = {'use_past_key_values': False, 'use_last_step_states': True,
+    config = {'device': 'cpu',
+            'use_past_key_values': False, 'use_last_step_states': True,
             'max_lengths': {'input': 30, 'output': 30,},
             'control_token_ids': { 'input_pad_token_id': tokenizer.pad_token_id,
                                     'output_eos_token_id': tokenizer.eos_token_id, 
@@ -249,32 +246,29 @@ def main():
     enfr_autoreg_wrapped_model = AutoRegWrapper(vector_model, en_discretizer, fr_discretizer, config)
 
     # an example input and output sequences
-    # sequence_en_1 = "Everything not saved will be lost."
-    # sequence_en_2 = "One must imagine Sisyphus happy."
-    # en_batch = [sequence_en_1, sequence_en_2]
     en_batch = ['Everything that is lost that is lost.', 'we must imagine Sisyphe happy.']
     input_en = tokenizer(text=en_batch, return_tensors="pt", padding=True)
     input_ids_en = input_en['input_ids']
-    output_en_fr = enfr_autoreg_wrapped_model(input_ids=input_ids_en, input_attention_mask=None, input_embeds_enc=None,
-                                                teacher_force_output=False)
-    # print the output of the model
-    print('--'*20)
-    print('auto-regressive forward pass - starting from the prepending embeddings (bos!)')
-    print('decoded output:', tokenizer.batch_decode(output_en_fr['id'], skip_special_tokens=False))
-
-    # # another example, starting from half of the output instead of the prepending embeddings
-    # sequence_fr_1 = "Tout ce qui n'est pas sauvé sera perdu."
-    # sequence_fr_2 = "Il faut imaginer Sisyphe heureux."
-    # fr_batch = [sequence_fr_1, sequence_fr_2]
-    # output_ids_fr = tokenizer(text_target=fr_batch, return_tensors="pt", padding=True)['input_ids'][:, 1:5]
-    # output_ids_fr = torch.cat((prefix_ids_fr.repeat(2, 1), output_ids_fr), axis=1)
-    # output_en_fr = enfr_autoreg_wrapped_model(input_ids=input_ids_en, output_ids=output_ids_fr, 
+    # output_en_fr = enfr_autoreg_wrapped_model(input_ids=input_ids_en, input_attention_mask=None, input_embeds_enc=None,
     #                                             teacher_force_output=False)
     # # print the output of the model
     # print('--'*20)
-    # print('auto-regressive forward pass - starting from half of the output')
-    # print('decoded input:', tokenizer.batch_decode(output_ids_fr, skip_special_tokens=False))
+    # print('auto-regressive forward pass - starting from the prepending embeddings (bos!)')
     # print('decoded output:', tokenizer.batch_decode(output_en_fr['id'], skip_special_tokens=False))
+
+    # another example, starting from half of the output instead of the prepending embeddings
+    sequence_fr_1 = "Tout ce qui n'est pas sauvé sera perdu."
+    sequence_fr_2 = "Il faut imaginer Sisyphe heureux."
+    fr_batch = [sequence_fr_1, sequence_fr_2]
+    output_ids_fr = tokenizer(text_target=fr_batch, return_tensors="pt", padding=True)['input_ids'][:, 1:5]
+    output_ids_fr = torch.cat((prefix_ids_fr.repeat(2, 1), output_ids_fr), axis=1)
+    output_en_fr = enfr_autoreg_wrapped_model(input_ids=input_ids_en, output_ids=output_ids_fr, 
+                                                teacher_force_output=False)
+    # print the output of the model
+    print('--'*20)
+    print('auto-regressive forward pass - starting from half of the output')
+    print('decoded input:', tokenizer.batch_decode(output_ids_fr, skip_special_tokens=False))
+    print('decoded output:', tokenizer.batch_decode(output_en_fr['id'], skip_special_tokens=False))
 
     # # another example, teacher forcing the output
     # fr_batch = [sequence_fr_1, sequence_fr_2]

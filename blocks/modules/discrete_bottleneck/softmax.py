@@ -27,6 +27,6 @@ class SoftmaxDiscreteBottleneck(AbstractDiscreteLayer):
         elif not self.quantize_vector:
             quantized_vector_encoder = torch.matmul(score, self.encoder_embedding.weight)
             quantized_vector_decoder = torch.matmul(score, self.decoder_embedding.weight)
-        quantization_loss = torch.tensor(0.0).to(x.device)
+        quantization_loss = torch.tensor(0.0).to(x)
         return {"id": idx, "score": score, "logit": logits, "quantized_vector_encoder": quantized_vector_encoder, 
                 "quantized_vector_decoder": quantized_vector_decoder, "quantization_loss": quantization_loss}

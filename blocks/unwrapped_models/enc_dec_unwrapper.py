@@ -17,24 +17,24 @@ def EncoderDecoderUnwrapper(enc_dec_model):
         linearhead_weight: The linear head weights.
     """
     # Get the encoder and decoder weights
-    encoder_embedding_weight = enc_dec_model.get_encoder().embed_tokens.weight
+    encoder_embedding = enc_dec_model.get_encoder().embed_tokens
     try:
-        encoder_embedding_weight = enc_dec_model.model.encoder.embed_scale * encoder_embedding_weight
+        encoder_embedding.weight = enc_dec_model.model.encoder.embed_scale * encoder_embedding.weight
     except:
         pass
-    decoder_embedding_weight = enc_dec_model.get_decoder().embed_tokens.weight
+    decoder_embedding = enc_dec_model.get_decoder().embed_tokens
     try:
-        decoder_embedding_weight = enc_dec_model.model.decoder.embed_scale * decoder_embedding_weight
+        decoder_embedding.weight = enc_dec_model.model.decoder.embed_scale * decoder_embedding.weight
     except:
         pass
-    linearhead_weight = enc_dec_model.lm_head.weight
-    linearhead_bias = enc_dec_model.lm_head.bias
-    linearhead_final_logit_bias = enc_dec_model.final_logits_bias
+    linearhead = enc_dec_model.lm_head
+    # linearhead_bias = enc_dec_model.lm_head.bias
+    # linearhead_final_logit_bias = enc_dec_model.final_logits_bias
     # linear_head = enc_dec_model.get_output_embeddings()
 
     vector_model = enc_dec_model.model
-    return {'vector_model': vector_model, 'encoder_embedding_weight': encoder_embedding_weight, 
-        'decoder_embedding_weight': decoder_embedding_weight, 'linearhead_weight': linearhead_weight, 'linearhead_bias': linearhead_bias} 
+    return {'vector_model': vector_model, 'encoder_embedding_weight': encoder_embedding, 
+        'decoder_embedding_weight': decoder_embedding, 'linearhead_weight': linearhead} 
 
 ########################################################################################################################
 # Example to use the function vector_model_enfr, en_encoder_weight, fr_decoder_weight, fr_linearhead_weight = EncoderDecoderUnwrapper(model_enfr)

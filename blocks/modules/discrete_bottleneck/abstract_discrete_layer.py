@@ -21,35 +21,43 @@ class AbstractDiscreteLayer(nn.Module):
         self.label_smoothing_scale = config.get('label_smoothing_scale', 0.001)
 
         # initialize the embedding matrix for encoder and decoder
-        if self.config.get('encoder_embedding_weight', None) is not None:
-            self.encoder_embedding = nn.Embedding(self.vocab_size, self.encoder_embedding_dim).requires_grad_(self.config['encoder_embedding_trainable'])
-            self.encoder_embedding.weight = nn.Parameter(self.config['encoder_embedding_weight'], 
-                    requires_grad=self.config['encoder_embedding_trainable'])
+        if self.config.get('encoder_embedding', None) is not None:
+            # self.encoder_embedding = nn.Embedding(self.vocab_size, self.encoder_embedding_dim).requires_grad_(self.config['encoder_embedding_trainable'])
+            # self.encoder_embedding.weight = nn.Parameter(self.config['encoder_embedding_weight'], 
+            #         requires_grad=self.config['encoder_embedding_trainable'])
+            # nn.parameter clones the tensor
+            self.encoder_embedding = self.config['encoder_embedding'].requires_grad_(self.config['encoder_embedding_trainable'])
         else:
             self.encoder_embedding = nn.Embedding(self.vocab_size, self.encoder_embedding_dim).requires_grad_(self.config['encoder_embedding_trainable'])
             torch.nn.init.normal_(self.encoder_embedding.weight, mean=0, std=1/math.sqrt(self.encoder_embedding_dim))
 
-        if self.config.get('decoder_embedding_weight', None) is not None:
-            self.decoder_embedding = nn.Embedding(self.vocab_size, self.decoder_embedding_dim).requires_grad_(self.config['decoder_embedding_trainable'])
-            self.decoder_embedding.weight = nn.Parameter(self.config['decoder_embedding_weight'], 
-                    requires_grad=self.config['decoder_embedding_trainable'])
+        if self.config.get('decoder_embedding', None) is not None:
+            # self.decoder_embedding = nn.Embedding(self.vocab_size, self.decoder_embedding_dim).requires_grad_(self.config['decoder_embedding_trainable'])
+            # self.decoder_embedding.weight = nn.Parameter(self.config['decoder_embedding_weight'], 
+                    # requires_grad=self.config['decoder_embedding_trainable'])
+            # nn.parameter clones the tensor
+            self.decoder_embedding = self.config['decoder_embedding'].requires_grad_(self.config['decoder_embedding_trainable'])
         else:
             self.decoder_embedding = nn.Embedding(self.vocab_size, self.decoder_embedding_dim).requires_grad_(self.config['decoder_embedding_trainable'])
             torch.nn.init.normal_(self.decoder_embedding.weight, mean=0, std=1/math.sqrt(self.decoder_embedding_dim))
         
         # initialize the linear head
-        if self.config.get('linear_head_weight', None) is not None:
-            self.linear_head = nn.Linear(self.decoder_embedding_dim, self.unembedding_dim).requires_grad_(self.config['linear_head_trainable'])
-            self.linear_head.weight = nn.Parameter(self.config['linear_head_weight'],
-                    requires_grad=self.config['linear_head_trainable'])
+        if self.config.get('linear_head', None) is not None:
+            # self.linear_head = nn.Linear(self.decoder_embedding_dim, self.unembedding_dim).requires_grad_(self.config['linear_head_trainable'])
+            # self.linear_head.weight = nn.Parameter(self.config['linear_head_weight'],
+            #         requires_grad=self.config['linear_head_trainable'])
+            # nn.parameter clones the tensor
+            self.linear_head = self.config['linear_head'].requires_grad_(self.config['linear_head_trainable'])
         else:
             self.linear_head = nn.Linear(self.decoder_embedding_dim, self.unembedding_dim).requires_grad_(self.config['linear_head_trainable'])
             torch.nn.init.normal_(self.linear_head.weight, mean=0, std=1/math.sqrt(self.unembedding_dim))
         
-        if self.config.get('linear_head_bias', None) is not None:
-            self.linear_head.bias = nn.Parameter(self.config['linear_head_bias'], requires_grad=self.config['linear_head_trainable'])
-        else:
-            self.linear_head.bias = nn.Parameter(torch.zeros(self.unembedding_dim), requires_grad=self.config['linear_head_trainable'])
+        # if self.config.get('linear_head_bias', None) is not None:
+        #     # self.linear_head.bias = nn.Parameter(self.config['linear_head_bias'], requires_grad=self.config['linear_head_trainable'])
+        #     # nn.parameter clones the tensor
+        #     self.linear_head.bias = self.config['linear_head_bias'].requires_grad_(self.config['linear_head_trainable'])
+        # else:
+        #     self.linear_head.bias = nn.Parameter(torch.zeros(self.unembedding_dim), requires_grad=self.config['linear_head_trainable'])
         
     def forward(self, x,**kwargs):
         continous_vector = self.linear_head(x)
