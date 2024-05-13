@@ -19,22 +19,22 @@ def EncoderDecoderUnwrapper(enc_dec_model):
     # Get the encoder and decoder weights
     encoder_embedding = enc_dec_model.get_encoder().embed_tokens
     try:
-        encoder_embedding.weight = enc_dec_model.model.encoder.embed_scale * encoder_embedding.weight
+        encoder_embedding.weight.data = enc_dec_model.model.encoder.embed_scale * encoder_embedding.weight.data
     except:
         pass
     decoder_embedding = enc_dec_model.get_decoder().embed_tokens
     try:
-        decoder_embedding.weight = enc_dec_model.model.decoder.embed_scale * decoder_embedding.weight
+        decoder_embedding.weight.data = enc_dec_model.model.decoder.embed_scale * decoder_embedding.weight.data
     except:
         pass
-    linearhead = enc_dec_model.lm_head
+    linear_head = enc_dec_model.lm_head
     # linearhead_bias = enc_dec_model.lm_head.bias
     # linearhead_final_logit_bias = enc_dec_model.final_logits_bias
     # linear_head = enc_dec_model.get_output_embeddings()
 
     vector_model = enc_dec_model.model
-    return {'vector_model': vector_model, 'encoder_embedding_weight': encoder_embedding, 
-        'decoder_embedding_weight': decoder_embedding, 'linearhead_weight': linearhead} 
+    return {'vector_model': vector_model, 'encoder_embedding': encoder_embedding, 
+        'decoder_embedding': decoder_embedding, 'linear_head': linear_head} 
 
 ########################################################################################################################
 # Example to use the function vector_model_enfr, en_encoder_weight, fr_decoder_weight, fr_linearhead_weight = EncoderDecoderUnwrapper(model_enfr)
@@ -44,11 +44,10 @@ def Unwrappedbart(config):
     model = BartForConditionalGeneration(config)
     df = EncoderDecoderUnwrapper(model)
     vector_model = df['vector_model']
-    encoder_embedding_weight = df['encoder_embedding_weight']
-    decoder_embedding_weight = df['decoder_embedding_weight']
-    linearhead_weight = df['linearhead_weight']
-    linearhead_bias = df['linearhead_bias']
-    return vector_model, encoder_embedding_weight, decoder_embedding_weight, linearhead_weight, linearhead_bias
+    encoder_embedding = df['encoder_embedding']
+    decoder_embedding = df['decoder_embedding']
+    linear_head= df['linear_head']
+    return vector_model, encoder_embedding, decoder_embedding, linear_head
 
 def UnwrappedMbart(model=None, tokenizer=None, config=None):
     """
@@ -66,26 +65,21 @@ def UnwrappedMbart(model=None, tokenizer=None, config=None):
     from transformers import MBartForConditionalGeneration
     model = MBartForConditionalGeneration.from_pretrained("facebook/mbart-large-50-many-to-many-mmt")
 
-    vector_model, encoder_weight, decoder_weight, linearhead_weight, linearhead_bias = EncoderDecoderUnwrapper(model).values()
+    vector_model, encoder_embedding, decoder_embedding, linear_head = EncoderDecoderUnwrapper(model).values()
     
     discretizer_enc = SoftmaxDiscreteBottleneck({'dimensions': {'decoder_embedding_dim': 1024, 'vocab_size': 250054, 'encoder_embedding_dim': 1024, 'unembedding_dim': 250054}, 
                                 'quantize_vector': True, 'temperature': 1.0,
                                 'encoder_embedding_trainable': False, 'decoder_embedding_trainable': False, 'linear_head_trainable': False, 
-                                'encoder_embedding_weight': encoder_weight, 'decoder_embedding_weight': decoder_weight, 
-                                'linear_head_weight': linearhead_weight, 'linear_head_bias': linearhead_bias})
+                                'encoder_embedding': encoder_embedding, 'decoder_embedding': decoder_embedding, 
+                                'linear_head': linear_head,})
     discretizer_dec = SoftmaxDiscreteBottleneck({'dimensions': {'decoder_embedding_dim': 1024, 'vocab_size': 250054, 'encoder_embedding_dim': 1024, 'unembedding_dim': 250054}, 
                                 'quantize_vector': True, 'temperature': 1.0,
                                 'encoder_embedding_trainable': False, 'decoder_embedding_trainable': False, 'linear_head_trainable': False, 
-                                'encoder_embedding_weight': encoder_weight, 'decoder_embedding_weight': decoder_weight,
-                                'linear_head_weight': linearhead_weight, 'linear_head_bias': linearhead_bias})
+                                'encoder_embedding': encoder_embedding, 'decoder_embedding': decoder_embedding,
+                                'linear_head': linear_head,})
     return {
         'model': model, 'vector_model': vector_model,
         'discretizer_enc': discretizer_enc, 'discretizer_dec': discretizer_dec,}
-
-
-
-
-
 
 
 
@@ -98,7 +92,7 @@ def main() -> Optional[float]:
     model = unwrapped_model['model']
     vector_model = unwrapped_model['vector_model']
     en_discretizer = unwrapped_model['discretizer_enc']
-    fr_discretizer = unwrapped_model['discretizer_z']
+    fr_discretizer = unwrapped_model['discretizer_dec']
     
     from transformers import MBart50TokenizerFast
     tokenizer = MBart50TokenizerFast.from_pretrained("facebook/mbart-large-50-many-to-many-mmt", src_lang="en_XX", tgt_lang="fr_XX")

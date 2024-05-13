@@ -25,10 +25,14 @@ class AutoRegWrapper(Module):
         self.max_lengths = self.config['max_lengths']
         self.control_token_ids = self.config['control_token_ids']
         self.soft_average = self.config['soft_average']
+        device=self.config['device']
 
-        self.pad_embed_enc = self.output_discretizer.encoder_embedding_from_id(torch.tensor(self.control_token_ids['output_pad_token_id']).to(self.config['device']))
-        self.pad_embed_dec = self.output_discretizer.decoder_embedding_from_id(torch.tensor(self.control_token_ids['output_pad_token_id']).to(self.config['device']))
-        self.onehot_score_pad = torch.nn.functional.one_hot(torch.tensor(self.control_token_ids['output_pad_token_id']), num_classes=self.output_discretizer.vocab_size).to(self.config['device']).float()
+        self.output_discretizer.to(device)
+        self.input_discretizer.to(device)
+
+        self.pad_embed_enc = self.output_discretizer.encoder_embedding_from_id(torch.tensor(self.control_token_ids['output_pad_token_id']).to(self.output_discretizer.encoder_embedding.weight.device))
+        self.pad_embed_dec = self.output_discretizer.decoder_embedding_from_id(torch.tensor(self.control_token_ids['output_pad_token_id']).to(self.output_discretizer.encoder_embedding.weight.device))
+        self.onehot_score_pad = torch.nn.functional.one_hot(torch.tensor(self.control_token_ids['output_pad_token_id']), num_classes=self.output_discretizer.vocab_size).to(self.output_discretizer.encoder_embedding.weight.device).float()
 
         output_prepending_ids = self.config.get('output_prepending_ids', None)
         output_prepending_embeds_enc = self.config.get('output_prepending_embeds_enc', None)
@@ -37,9 +41,9 @@ class AutoRegWrapper(Module):
         if output_prepending_ids is None and (output_prepending_embeds_enc is None or output_prepending_embeds_dec is None):
             raise ValueError("output_prepending_ids nor the embeddings are not provided")
         elif output_prepending_ids is None and (output_prepending_embeds_enc is not None and output_prepending_embeds_dec is not None):
-            self.output_prepending_ids = self.control_token_ids['pad_token_id_y'] * torch.ones(output_prepending_embeds_dec.shape[:2], dtype=torch.long).to(self.config['device'])
-            self.output_prepending_embeds_enc = output_prepending_embeds_enc.to(self.config['device'])
-            self.output_prepending_embeds_dec = output_prepending_embeds_dec.to(self.config['device'])
+            self.output_prepending_ids = self.control_token_ids['pad_token_id_y'] * torch.ones(output_prepending_embeds_dec.shape[:2], dtype=torch.long).to(self.onehot_score_pad.device)
+            self.output_prepending_embeds_enc = output_prepending_embeds_enc.to(self.onehot_score_pad.device)
+            self.output_prepending_embeds_dec = output_prepending_embeds_dec.to(self.onehot_score_pad.device)
         else:
             self.output_prepending_ids = output_prepending_ids.to(self.config['device'])
             self.output_prepending_embeds_enc = self.output_discretizer.encoder_embedding_from_id(self.output_prepending_ids).to(self.config['device'])
