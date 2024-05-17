@@ -80,11 +80,14 @@ def test_gradients_vector_model_functionality():
     discrete_output_2_scores.retain_grad()
 
     loss.backward()
-    print(f"Gradient of the loss w.r.t. the input: {input_embeds_0.grad}")
-    print(f"Gradient of the loss w.r.t. the encoder embedding: {discrete_output_1_encoder_embeds.grad}")
-    print(f"Gradient of the loss w.r.t. the decoder embedding: {discrete_output_1_decoder_embeds.grad}")
+    print(f"Gradient of the loss w.r.t. the input encoder embedding: {input_embeds_0.grad}")
+    print(f"Gradient of the loss w.r.t. the output1 encoder embedding: {discrete_output_1_encoder_embeds.grad}")
+    print(f"Gradient of the loss w.r.t. the output1 decoder embedding: {discrete_output_1_decoder_embeds.grad}")
     print(f"Gradient of the loss w.r.t. the output1 probabilities: {discrete_output_1_scores.grad}")
     print(f"Gradient of the loss w.r.t. the output2 probabilities: {discrete_output_2_scores.grad}")
+    print(f"gradient of loss w.r.t. the encoder embedding parameters: {discretizer.encoder_embedding.weight.grad}")
+    print(f"gradient of loss w.r.t. the decoder embedding parameters: {discretizer.decoder_embedding.weight.grad}")
+    print(f"gradient of loss w.r.t. the linear head parameters: {discretizer.linear_head.weight.grad}")
     print(f"Loss: {loss}")
 
 
@@ -136,9 +139,9 @@ def test_gradients_autoregged_wrapped_functionality():
     torch.manual_seed(42)
     
     model = BartForConditionalGeneration(BartConfig(**config_bart)).to(device)
-    vector_model, encoder_embedding, decoder_embedding, linearhead = EncoderDecoderUnwrapper(model).values()
+    vector_model, encoder_embedding, decoder_embedding, linear_head = EncoderDecoderUnwrapper(model).values()
     discretizer = SoftmaxDiscreteBottleneck({**discretizer_config, 'encoder_embedding': encoder_embedding,
-                                            'decoder_embedding': decoder_embedding, 'linear_head': linearhead,}).to(device)
+                                            'decoder_embedding': decoder_embedding, 'linear_head': linear_head,}).to(device)
     
     enfr_autoreg_wrapped_model = AutoRegWrapper(vector_model, discretizer, discretizer,config).to(device)
 
@@ -259,10 +262,12 @@ def test_gradient_autoreg_forward_from_embed_method():
     scores.retain_grad()
 
     loss.backward()
-    # print(f"Gradient of the loss w.r.t. the encoder embedding: {encoder_embeds.grad}")
-    # print(f"Gradient of the loss w.r.t. the decoder embedding: {decoder_embeds.grad}")
-    # print(f"Gradient of the loss w.r.t. the input ")
-    print(f"Gradient of the loss w.r.t. the probabilities: {scores.grad}")
+    print(f"Gradient of the loss w.r.t. the input encoder embedding: {encoder_embeds.grad}")
+    print(f"Gradient of the loss w.r.t. the input decoder embedding: {decoder_embeds.grad}")
+    print(f"Gradient of the loss w.r.t. the output probabilities: {scores.grad}")
+    print(f"gradient of loss w.r.t. the embedding parameters: {discretizer.encoder_embedding.weight.grad}")
+    print(f"gradient of loss w.r.t. the linear head parameters: {discretizer.linear_head.weight.grad}")
+    print(f"gradient of loss w.r.t. the decoder embedding parameters: {discretizer.decoder_embedding.weight.grad}")
     print(f"Loss: {loss}")
     
 
