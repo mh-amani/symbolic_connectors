@@ -6,6 +6,7 @@ blocks.egg-info/SOURCES.txt
 blocks.egg-info/dependency_links.txt
 blocks.egg-info/top_level.txt
 blocks/modules/__init__.py
+blocks/modules/auto_reg_wrapper.py
 blocks/modules/blocks_connector.py
 blocks/modules/discrete_bottleneck/__init__.py
 blocks/modules/discrete_bottleneck/abstract_discrete_layer.py

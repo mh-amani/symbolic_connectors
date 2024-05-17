@@ -17,17 +17,25 @@ def EncoderDecoderUnwrapper(enc_dec_model):
         linearhead_weight: The linear head weights.
     """
     # Get the encoder and decoder weights
-    encoder_embedding = enc_dec_model.get_encoder().embed_tokens
+    encoder_embedding_weight = enc_dec_model.get_encoder().embed_tokens.weight.clone()
+    encoder_embedding = torch.nn.Embedding(encoder_embedding_weight.shape[0], encoder_embedding_weight.shape[1])
+    encoder_embedding.weight.data = encoder_embedding_weight
     try:
         encoder_embedding.weight.data = enc_dec_model.model.encoder.embed_scale * encoder_embedding.weight.data
     except:
         pass
-    decoder_embedding = enc_dec_model.get_decoder().embed_tokens
+
+    decoder_embedding_weight = enc_dec_model.get_decoder().embed_tokens.weight.clone()
+    decoder_embedding = torch.nn.Embedding(decoder_embedding_weight.shape[0], decoder_embedding_weight.shape[1])
+    decoder_embedding.weight.data = decoder_embedding_weight
     try:
         decoder_embedding.weight.data = enc_dec_model.model.decoder.embed_scale * decoder_embedding.weight.data
     except:
         pass
-    linear_head = enc_dec_model.lm_head
+
+    linear_head_weight = enc_dec_model.lm_head.weight.clone()
+    linear_head = torch.nn.Linear(linear_head_weight.shape[1], linear_head_weight.shape[0])
+    linear_head.weight.data = linear_head_weight
     # linearhead_bias = enc_dec_model.lm_head.bias
     # linearhead_final_logit_bias = enc_dec_model.final_logits_bias
     # linear_head = enc_dec_model.get_output_embeddings()

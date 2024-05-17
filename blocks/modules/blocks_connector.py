@@ -25,29 +25,34 @@ class BlocksConnector(Module):
     def forward(self, x_ids: torch.Tensor=None, x_attention_mask: torch.Tensor=None, x_embeds_enc: torch.Tensor=None,
                       y_prepending_ids: torch.Tensor=None, y_prepending_embeds_enc: torch.Tensor=None, y_prepending_embeds_dec: torch.Tensor=None,
                       z_ids: torch.Tensor=None, z_attention_mask: torch.Tensor=None, z_embeds_dec: torch.Tensor=None,
-                      teacher_force_z: bool=True) -> Tuple[torch.Tensor, torch.Tensor]:
+                      teacher_force_z: bool=True, max_y_length: int=None, max_z_length: int=None) -> Dict[str, Any]:
         """Perform a forward pass through the models x -> y -> z
 
         :param x: A tensor of images.
         :return: A tensor of logits.
-        """        
+        """
+        if max_y_length is None:
+            max_y_length = self.model_x_to_y.max_lengths['output']
+        if max_z_length is None:
+            max_z_length = self.model_y_to_z.max_lengths['output']        
         xy_outputs = self.model_x_to_y(input_ids=x_ids, input_attention_mask=x_attention_mask, input_embeds_enc=x_embeds_enc,
                 output_ids=y_prepending_ids, output_embeds_enc=y_prepending_embeds_enc, output_embeds_dec=y_prepending_embeds_dec,
-                teacher_force_output=False, max_output_length=self.model_x_to_y.max_lengths['output'],)
+                teacher_force_output=False, max_output_length=max_y_length)
 
         y_inputs = self.transform_xy_outputs_to_y_inputs(xy_outputs)
         y_inputs['quantized_vector_encoder'] = y_inputs['quantized_vector_encoder'] * y_inputs['output_attention_mask'].unsqueeze(-1) + \
-            (1 - y_inputs['output_attention_mask']).detach().unsqueeze(-1) * y_inputs['quantized_vector_encoder']
+            (1 - y_inputs['output_attention_mask']).detach().unsqueeze(-1) * y_inputs['quantized_vector_encoder'] # I don't even know what I'm doing here
 
         yz_outputs = self.model_y_to_z(
             input_embeds_enc=y_inputs['quantized_vector_encoder'], input_attention_mask=y_inputs['output_attention_mask']>0, 
             output_ids=z_ids, output_embeds_dec=z_embeds_dec, output_attention_mask=z_attention_mask,
-            teacher_force_output=teacher_force_z, max_output_length=self.model_y_to_z.max_lengths['output'],)
+            teacher_force_output=teacher_force_z, max_output_length=max_z_length,)
             
         quantization_loss = xy_outputs['quantization_loss'] + yz_outputs['quantization_loss']
         
         return { 'id_y': xy_outputs['id'], 'id_z': yz_outputs['id'], 
                 'score_y': xy_outputs['score'], 'score_z': yz_outputs['score'],
+                'logit_y': xy_outputs['logit'], 'logit_z': yz_outputs['logit'],
                 'quantized_vector_encoder': yz_outputs['quantized_vector_encoder'], 'quantized_vector_decoder': yz_outputs['quantized_vector_decoder'],
                 'y_attention_mask': xy_outputs['output_attention_mask'], 'z_attention_mask': yz_outputs['output_attention_mask'],
                 'quantization_loss': quantization_loss,}
@@ -64,7 +69,7 @@ def main():
     # tokenizer.vocab['</s>']: 2, tokenizer.vocab['en_XX']: 250004, tokenizer.vocab['fr_XX']: 250008
     prefix_ids_fr = torch.tensor([2, 250008]).unsqueeze(0)
     prefix_ids_en = torch.tensor([2, 250004]).unsqueeze(0)
-    config = {'use_past_key_values': False, 'use_last_step_states': True,
+    config = {'device': 'cpu','use_past_key_values': False, 'use_last_step_states': True,
             'max_lengths': {'input': 30, 'output': 30,},
             'control_token_ids': { 'input_pad_token_id': tokenizer.pad_token_id,
                                     'output_eos_token_id': tokenizer.eos_token_id, 
@@ -80,8 +85,8 @@ def main():
     vector_model.eval()
     en_discretizer = unwrapped_model['discretizer_enc']
     fr_discretizer = unwrapped_model['discretizer_dec']    
-    enfr_autoreg_wrapped_model = AutoRegWrapper(vector_model, en_discretizer, fr_discretizer, config|{'output_prepending_ids': prefix_ids_fr})
-    fren_autoreg_wrapped_model = AutoRegWrapper(vector_model, fr_discretizer, en_discretizer, config|{'output_prepending_ids': prefix_ids_en})
+    enfr_autoreg_wrapped_model = AutoRegWrapper(vector_model, en_discretizer, fr_discretizer, config|{'output_prepending_ids': [2, 250008]})
+    fren_autoreg_wrapped_model = AutoRegWrapper(vector_model, fr_discretizer, en_discretizer, config|{'output_prepending_ids': [2, 250004]})
     
     def transform_xy_outputs_to_y_inputs(xy_outputs: Dict[str, Any]) -> Dict[str, Any]:
         # since bart output has a eos <\s> token prepended in its output, we remove it for feeding to the next model
