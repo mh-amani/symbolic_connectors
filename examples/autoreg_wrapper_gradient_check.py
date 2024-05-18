@@ -185,7 +185,6 @@ def test_gradients_autoregged_wrapped_functionality():
 
 
 def test_gradient_autoreg_forward_from_embed_method():
-    
     device='cuda' if torch.cuda.is_available() else 'cpu'
     vocab_size = 4
     batch_size = 1

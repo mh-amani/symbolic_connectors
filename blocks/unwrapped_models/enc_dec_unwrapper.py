@@ -33,20 +33,22 @@ def EncoderDecoderUnwrapper(enc_dec_model):
     except:
         pass
 
-    linear_head_weight = enc_dec_model.lm_head.weight.clone()
-    linear_head = torch.nn.Linear(linear_head_weight.shape[1], linear_head_weight.shape[0])
-    linear_head.weight.data = linear_head_weight
+    try:
+        linear_head_weight = enc_dec_model.lm_head.weight.clone()
+        linear_head = torch.nn.Linear(linear_head_weight.shape[1], linear_head_weight.shape[0])
+        linear_head.weight.data = linear_head_weight
     # linearhead_bias = enc_dec_model.lm_head.bias
     # linearhead_final_logit_bias = enc_dec_model.final_logits_bias
     # linear_head = enc_dec_model.get_output_embeddings()
+    except:
+        linear_head = None  
 
-    vector_model = enc_dec_model.model
+    try:
+        vector_model = enc_dec_model.model
+    except:
+        vector_model = None
     return {'vector_model': vector_model, 'encoder_embedding': encoder_embedding, 
         'decoder_embedding': decoder_embedding, 'linear_head': linear_head} 
-
-########################################################################################################################
-# Example to use the function vector_model_enfr, en_encoder_weight, fr_decoder_weight, fr_linearhead_weight = EncoderDecoderUnwrapper(model_enfr)
-
 
 def Unwrappedbart(config):
     model = BartForConditionalGeneration(config)
@@ -90,10 +92,52 @@ def UnwrappedMbart(model=None, tokenizer=None, config=None):
         'discretizer_enc': discretizer_enc, 'discretizer_dec': discretizer_dec,}
 
 
+def UnwrappedT5(base=True):
+    """
+    Unwraps the T5 model to get the encoder and decoder weights.
+    Returns:
+        model_enfr: The English to French model.
+        model_fren: The French to English model.
+        vector_model_enfr: The English to French model without embedding and head, pure transfomer.
+        vector_model_fren: The French to English model without embedding and head, pure transfomer.
+        discretizer_en: The English to French discretizer.
+        discretizer_fr: The French to English discretizer.
+        tokenizer_enfr: The English to French tokenizer.
+        tokenizer_fren: The French to English tokenizer.
+    """
+    from transformers import T5ForConditionalGeneration, T5Model, T5Tokenizer
+    tokenizer = T5Tokenizer.from_pretrained("t5-small")
+    if not base:
+        model = T5ForConditionalGeneration.from_pretrained("t5-small")
+        vector_model, encoder_embedding, decoder_embedding, linear_head = EncoderDecoderUnwrapper(model).values()
+        vector_model = T5Model.from_pretrained("t5-small")
+    else:
+        model = T5Model.from_pretrained("t5-small")
+        vector_model, encoder_embedding, decoder_embedding, linear_head = EncoderDecoderUnwrapper(model).values()
+        vector_model = model
 
+      
+    embed_dim = vector_model.config.d_model
+    vocab_size = vector_model.config.vocab_size
 
+    discretizer_enc = SoftmaxDiscreteBottleneck({'dimensions': {'decoder_embedding_dim': embed_dim, 'vocab_size': vocab_size, 'encoder_embedding_dim': embed_dim, 'unembedding_dim': vocab_size}, 
+                                'quantize_vector': True, 'temperature': 1.0,
+                                'encoder_embedding_trainable': False, 'decoder_embedding_trainable': False, 'linear_head_trainable': False, 
+                                'encoder_embedding': encoder_embedding, 'decoder_embedding': decoder_embedding, 
+                                'linear_head': linear_head,})
+    discretizer_dec = SoftmaxDiscreteBottleneck({'dimensions': {'decoder_embedding_dim': embed_dim, 'vocab_size': vocab_size, 'encoder_embedding_dim': embed_dim, 'unembedding_dim': vocab_size}, 
+                                'quantize_vector': True, 'temperature': 1.0,
+                                'encoder_embedding_trainable': False, 'decoder_embedding_trainable': False, 'linear_head_trainable': False, 
+                                'encoder_embedding': encoder_embedding, 'decoder_embedding': decoder_embedding,
+                                'linear_head': linear_head,})
+    return {
+        'model': model, 'vector_model': vector_model,
+        'discretizer_enc': discretizer_enc, 'discretizer_dec': discretizer_dec,}
 
-def main() -> Optional[float]:
+########################################################################################################################
+# Example to use the function vector_model_enfr, en_encoder_weight, fr_decoder_weight, fr_linearhead_weight = EncoderDecoderUnwrapper(model_enfr)
+
+def UnwrappedBartTest():
     # an example for the encoder-decoder MBART model:
     # get the models and the discretizers
     unwrapped_model = UnwrappedMbart()
@@ -137,9 +181,86 @@ def main() -> Optional[float]:
                     decoder_input_ids=output_ids_enfr, decoder_attention_mask=output_attention_mask_enfr, return_dict=True)
     print('decoded output original model:', tokenizer.batch_decode(output_model.logits.argmax(dim=-1), skip_special_tokens=False))
 
+def UnwrappedT5Test():
+    # an example for the encoder-decoder MBART model:
+    # get the models and the discretizers
+    from transformers import T5Tokenizer, T5ForConditionalGeneration
+    tokenizer = T5Tokenizer.from_pretrained("google-t5/t5-small")
+    model = T5ForConditionalGeneration.from_pretrained("google-t5/t5-small")
+
+    unwrapped_model = UnwrappedT5(base=False)
+    model = unwrapped_model['model']
+    vector_model = unwrapped_model['vector_model']
+    input_discretizer = unwrapped_model['discretizer_enc']
+    output_discretizer = unwrapped_model['discretizer_dec']
+
+    input_ids = tokenizer("translate English to German: The house is wonderful.", return_tensors="pt").input_ids
+    labels = tokenizer("Das Haus ist wunderbar.", return_tensors="pt").input_ids
+
+    # the forward function automatically creates the correct decoder_input_ids
+    logits = model(input_ids=input_ids, labels=labels).logits
+    print(tokenizer.batch_decode(logits.argmax(dim=-1)))
+    
+    labels_with_pad = torch.cat((torch.ones((labels.shape[0], 1), dtype=torch.long).to(labels.device)*tokenizer.pad_token_id, labels), dim=1)
+    # using vectorized model
+    input_vector_embeddings = input_discretizer.encoder_embedding_from_id(input_ids)
+    input_attention_mask = torch.ones_like(input_ids)
+    output_vector_embeddings = output_discretizer.decoder_embedding_from_id(labels_with_pad)
+    output_attention_mask = torch.ones_like(labels_with_pad)
+    # output_vector_embeddings = output_discretizer.decoder_embedding_from_id(labels)
+    # output_attention_mask = torch.ones_like(labels)
+    output_vector_model = vector_model(inputs_embeds=input_vector_embeddings, attention_mask=input_attention_mask,
+                                       decoder_inputs_embeds=output_vector_embeddings, decoder_attention_mask=output_attention_mask
+                                       ,use_cache= None,)
+    discretized_output = output_discretizer(output_vector_model['last_hidden_state'])
+    print('decoded output decomposed model:', tokenizer.batch_decode(discretized_output['id'], skip_special_tokens=False))
+
+
+
+
+
+
+    # # an example input and output sequences
+    # sequence_en_1 = "Everything not saved will be lost."
+    # sequence_en_2 = "one must imagine Sisyphus happy."
+    # sequence_fr_1= "Tout ce qui n'est pas sauvé sera perdu." # "il m'a entarté"
+    # sequence_fr_2 = "il faut imaginer Sisyphe heureux."
+    # en_batch = [sequence_en_1, sequence_en_2]
+    # fr_batch = [sequence_fr_1, sequence_fr_2]
+    # input_enfr = tokenizer(en_batch, return_tensors="pt", padding=True)
+    # output_enfr = tokenizer(fr_batch, return_tensors="pt", padding=True) # the text_target is not doing anything!
+    # input_ids_enfr, input_attention_mask_enfr = input_enfr['input_ids'], input_enfr['attention_mask']
+    # output_ids_enfr, output_attention_mask_enfr = output_enfr['input_ids'], output_enfr['attention_mask']
+
+    # # forward pass of one model
+    # input_vector_embeddings = en_discretizer.encoder_embedding_from_id(input_ids_enfr)
+    # output_vector_embeddings = fr_discretizer.decoder_embedding_from_id(output_ids_enfr) 
+    # output_vector_model = vector_model.forward(inputs_embeds=input_vector_embeddings, decoder_inputs_embeds=output_vector_embeddings,
+    #                                         attention_mask=input_attention_mask_enfr, decoder_attention_mask=output_attention_mask_enfr,
+    #                                         return_dict=True, output_hidden_states=True)
+    # discretized_output = fr_discretizer(output_vector_model['last_hidden_state'])
+    # # print the output of the discretizer discretized_output['id'], decoded with the tokenizer
+    # print('decoded output decomposed model:', tokenizer.batch_decode(discretized_output['id'], skip_special_tokens=False))
+   
+    # # forward pass of the model without the discretizer (for comparison)
+    # # output_model = model_enfr
+
+def main() -> Optional[float]:
+    # UnwrappedBartTest()
+    UnwrappedT5Test()
+
+    
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
 
 ########################################################################################################################
 # code snippets and other useful stuff for debugging and checking stuff
