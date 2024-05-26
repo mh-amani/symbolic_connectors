@@ -1,6 +1,6 @@
 import torch
 from typing import Optional
-from blocks.modules.discrete_bottleneck.softmax import SoftmaxDiscreteBottleneck
+from blocks.modules.discrete_bottlenecks.softmax import SoftmaxDiscreteBottleneck
 
 def DecoderUnwrapper(model):
     """

@@ -1,2 +1,7 @@
 
 *.pyc
+
+/blocks.egg-info
+/wandb
+/results
+/main

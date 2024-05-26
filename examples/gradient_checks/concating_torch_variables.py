@@ -2,7 +2,7 @@ import torch
 from transformers import BartForConditionalGeneration, BartConfig
 from blocks.modules.auto_reg_wrapper import AutoRegWrapper
 from blocks.unwrapped_models.enc_dec_unwrapper import EncoderDecoderUnwrapper
-from blocks.modules.discrete_bottleneck.softmax import SoftmaxDiscreteBottleneck
+from blocks.modules.discrete_bottlenecks.softmax import SoftmaxDiscreteBottleneck
 
 
 device='cuda' if torch.cuda.is_available() else 'cpu'
@@ -161,8 +161,8 @@ def test_gradients_torchcat():
 
 
 if __name__ == '__main__':
-    # print('--- Test gradients no concat ---')
-    # test_gradients_no_concat()
-    # print('--- Test gradients torchcat ---')
-    # test_gradients_torchcat()
-    # clone_test()
+    print('--- Test gradients no concat ---')
+    test_gradients_no_concat()
+    print('--- Test gradients torchcat ---')
+    test_gradients_torchcat()
+    clone_test()

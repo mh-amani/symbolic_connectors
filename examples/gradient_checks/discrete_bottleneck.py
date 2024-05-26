@@ -1,4 +1,4 @@
-from blocks.modules.discrete_bottleneck.softmax import SoftmaxDiscreteBottleneck
+from blocks.modules.discrete_bottlenecks.softmax import SoftmaxDiscreteBottleneck
 import torch
 from torch.autograd import gradcheck
 
