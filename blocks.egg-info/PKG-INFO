@@ -1,8 +1,0 @@
-Metadata-Version: 2.1
-Name: blocks
-Version: 0.1
-Summary: Example package containing blocks modules
-Home-page: http://www.example.com
-Author: Your Name
-Author-email: your.email@example.com
-Requires-Python: >=3.6
