@@ -5,3 +5,5 @@
 /wandb
 /results
 /main
+.vscode
+.DS_Store
