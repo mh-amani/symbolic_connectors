@@ -5,6 +5,19 @@ from torch.nn import LayerNorm,BatchNorm1d
 import math
 from dataclasses import dataclass
 
+# discretizer_config = {
+#         '_target_': 'blocks.modules.discrete_bottlenecks.abstract_discrete_layer.AbstractDiscreteLayer',
+#         'config': {
+#             'dimensions': None,
+#             'quantize_vector': True, 'temperature': 1.0,
+#             'encoder_embedding_trainable': False, 'decoder_embedding_trainable': False, 
+#             'linear_head_trainable': False, 
+#             'encoder_embedding': None, 'decoder_embedding': None, 
+#             'linear_head': None,
+#         }
+#     }
+
+
 class AbstractDiscreteLayer(nn.Module): 
     def __init__(self, config) -> None:
         super().__init__()

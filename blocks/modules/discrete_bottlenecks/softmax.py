@@ -2,6 +2,19 @@ from .abstract_discrete_layer import AbstractDiscreteLayer
 import torch
 import math
 
+# example config for SoftmaxDiscreteBottleneck
+# config = {
+#     '_target_': 'blocks.modules.discrete_bottlenecks.softmax.SoftmaxDiscreteBottleneck',
+#     'dimensions': {'decoder_embedding_dim': embed_dim, 'vocab_size': vocab_size, 
+#                     'encoder_embedding_dim': embed_dim, 'unembedding_dim': vocab_size}, 
+#     'quantize_vector': True, 'temperature': 1.0,
+#     'encoder_embedding_trainable': False, 'decoder_embedding_trainable': False, 
+#     'linear_head_trainable': False, 
+#     'encoder_embedding': encoder_embedding, 'decoder_embedding': decoder_embedding, 
+#     'linear_head': linear_head,
+#     }
+
+
 class SoftmaxDiscreteBottleneck(AbstractDiscreteLayer):
     def __init__(self, configs) -> None:
         super().__init__(configs)
